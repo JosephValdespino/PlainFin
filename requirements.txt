@@ -1,4 +1,6 @@
 streamlit
-openai>=1.0.0
+openai
 PyPDF2
 reportlab
+pandas
+matplotlib
