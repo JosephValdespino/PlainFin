@@ -1,47 +1,24 @@
 import streamlit as st
-import openai
-import PyPDF2
+from openai import OpenAI
 
 # Load API key from Streamlit secrets
-openai.api_key = st.secrets["OPENAI_API_KEY"]
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
-st.title("PlainFin: Finance Document Explainer")
-st.write("Upload a financial filing (10-K, 10-Q, or earnings report) and get a summary that explains not just **what** happened, but also **why** it happened.")
+st.title("📘 PlainFin: Learn Finance Smarter")
+st.write("Ask me any finance question — I'll explain not just *what* it is, but also *why* it works that way.")
 
-# Upload PDF
-uploaded_file = st.file_uploader("Upload a PDF", type="pdf")
+# User input
+user_question = st.text_input("💬 Enter your finance question:")
 
-def extract_text(pdf_file):
-    """Extract text from uploaded PDF"""
-    reader = PyPDF2.PdfReader(pdf_file)
-    text = ""
-    for page in reader.pages:
-        text += page.extract_text() or ""
-    return text
-
-if uploaded_file:
-    with st.spinner("Reading document..."):
-        raw_text = extract_text(uploaded_file)
-
-    st.success("Document uploaded. Generating explanations...")
-
-    # Split text into smaller chunks (avoid token limits)
-    chunks = [raw_text[i:i+2000] for i in range(0, len(raw_text), 2000)]
-
-    summaries = []
-    for chunk in chunks[:3]:  # limit to 3 chunks for MVP
-        response = openai.ChatCompletion.create(
-            model="gpt-4o-mini",
+if user_question:
+    with st.spinner("Thinking..."):
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "You are a finance tutor who explains both facts and reasoning."},
-                {"role": "user", "content": f"Summarize this financial text. For each point, explain BOTH:\n1. What happened (fact)\n2. Why it happened (drivers, logic, concept).\n\nText:\n{chunk}"}
-            ],
-            temperature=0.5,
-            max_tokens=500
+                {"role": "system", "content": "You are a patient finance tutor. Explain concepts clearly, step by step, with both the definition and the logic behind it."},
+                {"role": "user", "content": user_question}
+            ]
         )
-        summaries.append(response["choices"][0]["message"]["content"])
 
-    st.subheader("📊 Fact + Why Explanations")
-    for i, summary in enumerate(summaries):
-        st.markdown(f"**Section {i+1}:**")
-        st.write(summary)
+        answer = response.choices[0].message.content
+        st.markdown(f"### ✨ Answer:\n{answer}")
