@@ -5,14 +5,23 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from io import BytesIO
 
-# Load API key from Streamlit secrets
+# Initialize OpenAI client
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
-st.title("PlainFin: Finance Document Explainer")
-st.write("Upload a financial filing (10-K, 10-Q, earnings report) and get a summary that explains not just **what** happened, but also **why**.")
+st.title("📊 PlainFin: Finance Document Copilot")
+st.write(
+    "Upload a financial filing (10-K, 10-Q, earnings report) and get:\n"
+    "- Per-section summaries with facts + reasons\n"
+    "- Executive summary\n"
+    "- Key metrics (revenue, margins, debt, etc.)\n"
+    "- Plain English explanations of financial jargon\n"
+    "- Custom Q&A about the filing (with or without outside knowledge)"
+)
 
-# Upload PDF
-uploaded_file = st.file_uploader("Upload a PDF", type="pdf")
+# ----------------------------
+# PDF Extraction
+# ----------------------------
+uploaded_file = st.file_uploader("📂 Upload a PDF", type="pdf")
 
 def extract_text(pdf_file):
     """Extract text from uploaded PDF using PyPDF2"""
@@ -76,53 +85,43 @@ def build_pdf(report_text):
     buffer.seek(0)
     return buffer
 
+# ----------------------------
+# Main Processing
+# ----------------------------
 if uploaded_file:
-    with st.spinner("Reading document..."):
+    with st.spinner("📖 Reading document..."):
         raw_text = extract_text(uploaded_file)
 
-    st.success("✅ Document uploaded. Now generating explanation...")
+    st.success("✅ Document uploaded. Now generating insights...")
 
-    # Chunk text
+    # --- Per-section summaries ---
     chunks = chunk_text(raw_text, 2000)
-
     summaries = []
-    for i, chunk in enumerate(chunks[:3]):  # limit to 3 chunks for now
+    for i, chunk in enumerate(chunks[:3]):  # limit to 3 chunks
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {
-                    "role": "system",
-                    "content": "You are a finance tutor who explains both facts and reasoning in bullet-point format."
-                },
-                {
-                    "role": "user",
-                    "content": f"Summarize this section of a financial filing in BULLET POINTS. For each bullet, explain BOTH:\n- What happened (fact)\n- Why it happened (drivers, logic, concepts).\n\nText:\n{chunk}"
-                }
+                {"role": "system", "content": "You are a finance tutor who explains both facts and reasoning in bullet-point format."},
+                {"role": "user", "content": f"Summarize this section of a financial filing in BULLET POINTS. For each bullet, explain BOTH:\n- What happened (fact)\n- Why it happened (drivers, logic, concepts).\n\nText:\n{chunk}"}
             ],
             temperature=0.5,
             max_tokens=500
         )
         summaries.append(response.choices[0].message.content)
 
-    st.subheader("📊 Fact + Why Explanation (Per Section)")
+    st.subheader("📊 Per-Section Summaries")
     for i, summary in enumerate(summaries):
         with st.expander(f"Section {i+1}"):
             st.markdown(summary)
 
-    # Executive summary across all chunks
-    with st.spinner("Creating executive summary..."):
+    # --- Executive summary ---
+    with st.spinner("📝 Creating executive summary..."):
         joined_summaries = "\n\n".join(summaries)
         final_response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {
-                    "role": "system",
-                    "content": "You are a finance tutor who writes clear, structured executive summaries in bullet-point format."
-                },
-                {
-                    "role": "user",
-                    "content": f"Here are section summaries from a financial filing:\n{joined_summaries}\n\nWrite a concise EXECUTIVE SUMMARY in BULLET POINTS that highlights:\n- Key facts (what happened)\n- Main drivers/reasons (why it happened)\nKeep it clear and professional."
-                }
+                {"role": "system", "content": "You are a finance tutor who writes clear, structured executive summaries in bullet-point format."},
+                {"role": "user", "content": f"Here are section summaries from a financial filing:\n{joined_summaries}\n\nWrite a concise EXECUTIVE SUMMARY in BULLET POINTS that highlights:\n- Key facts (what happened)\n- Main drivers/reasons (why it happened)\nKeep it clear and professional."}
             ],
             temperature=0.5,
             max_tokens=600
@@ -132,16 +131,72 @@ if uploaded_file:
     st.subheader("📌 Executive Summary")
     st.markdown(executive_summary)
 
-    # Build full report (Markdown styled)
-    full_report = "# 📊 PlainFin Report\n\n"
-    full_report += "This report summarizes a financial filing, structured into per-section insights and a high-level executive summary.\n\n"
+    # --- Key Metrics Extraction ---
+    st.subheader("📈 Key Metrics")
+    metric_prompt = f"""
+    Extract and highlight the most important financial metrics from this filing. 
+    Focus on:
+    - Revenue growth (YoY, QoQ if available)
+    - Profitability (gross margin, operating margin, net income)
+    - Debt levels and leverage
+    - Cash flow highlights
+    - Guidance (if mentioned)
 
+    Return them as bullet points with both the number (fact) and its implication (why it matters).
+    Text:\n{raw_text[:8000]}
+    """
+    metric_response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "system", "content": "You are a financial analyst."},
+                  {"role": "user", "content": metric_prompt}],
+        temperature=0.4,
+        max_tokens=600
+    )
+    st.markdown(metric_response.choices[0].message.content)
+
+    # --- Explain Jargon ---
+    st.subheader("🗂️ Explain Financial Jargon")
+    jargon_term = st.text_input("Enter a financial term you'd like explained:")
+    if jargon_term:
+        jargon_response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a finance tutor who explains concepts in plain English with examples."},
+                {"role": "user", "content": f"Explain the term '{jargon_term}' in simple language with a real-world analogy."}
+            ],
+            temperature=0.5,
+            max_tokens=300
+        )
+        st.info(jargon_response.choices[0].message.content)
+
+    # --- Q&A ---
+    st.subheader("❓ Ask Questions About the Filing")
+    user_question = st.text_input("Ask a question (e.g., 'What are Tesla’s main risks this year?')")
+    qa_mode = st.radio("Answer Mode:", ["Document Only", "Document + Outside Knowledge"], horizontal=True)
+
+    if user_question:
+        if qa_mode == "Document Only":
+            qa_prompt = f"Use ONLY the content of this financial filing to answer:\n{user_question}\n\nFiling text:\n{raw_text[:12000]}"
+        else:
+            qa_prompt = f"Use BOTH the financial filing and your own financial knowledge to answer:\n{user_question}\n\nFiling text:\n{raw_text[:12000]}"
+
+        qa_response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a senior equity research analyst. Always explain both the fact (what) and the reasoning (why)."},
+                {"role": "user", "content": qa_prompt}
+            ],
+            temperature=0.5,
+            max_tokens=600
+        )
+        st.success(qa_response.choices[0].message.content)
+
+    # --- Build Full Report (Markdown + PDF) ---
+    full_report = "# 📊 PlainFin Report\n\n"
     full_report += "## 📖 Per-Section Summaries\n\n"
     for i, summary in enumerate(summaries):
         full_report += f"### Section {i+1}\n{summary}\n\n"
-
-    full_report += "## 📌 Executive Summary\n\n"
-    full_report += executive_summary
+    full_report += "## 📌 Executive Summary\n\n" + executive_summary + "\n\n"
 
     # Download as Markdown
     st.download_button(
