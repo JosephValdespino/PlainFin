@@ -120,7 +120,7 @@ if uploaded_file:
         final_response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "You are a finance tutor who writes clear, structured executive summaries in bullet-point format."},
+                {"role": "system", "content": "You are a finance tutor who writes clear, structured executive summaries in bullet-point format. No bold/italics."},
                 {"role": "user", "content": f"Here are section summaries from a financial filing:\n{joined_summaries}\n\nWrite a concise EXECUTIVE SUMMARY in BULLET POINTS that highlights:\n- Key facts (what happened)\n- Main drivers/reasons (why it happened)\nKeep it clear and professional."}
             ],
             temperature=0.5,
@@ -161,7 +161,7 @@ if uploaded_file:
         jargon_response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "You are a finance tutor who explains concepts in plain English with examples."},
+                {"role": "system", "content": "You are a finance tutor who explains concepts in plain English with examples. No bold/italics."},
                 {"role": "user", "content": f"Explain the term '{jargon_term}' in simple language with a real-world analogy."}
             ],
             temperature=0.5,
@@ -183,7 +183,7 @@ if uploaded_file:
         qa_response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "You are a senior equity research analyst. Always explain both the fact (what) and the reasoning (why)."},
+                {"role": "system", "content": "You are a senior equity research analyst. Always explain both the fact (what) and the reasoning (why). No bold/italics."},
                 {"role": "user", "content": qa_prompt}
             ],
             temperature=0.5,
