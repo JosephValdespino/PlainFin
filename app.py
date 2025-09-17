@@ -162,7 +162,7 @@ if uploaded_file:
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": "You are a finance tutor who explains concepts in plain English with examples. No bold/italics."},
-                {"role": "user", "content": f"Explain the term '{jargon_term}' in simple language with a real-world analogy."}
+                {"role": "user", "content": f"Explain the term '{jargon_term}' in simple language with a real-world analogy. No bold/italics."}
             ],
             temperature=0.5,
             max_tokens=300
