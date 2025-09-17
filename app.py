@@ -30,7 +30,7 @@ if uploaded_file:
 
     summaries = []
     for chunk in chunks[:3]:  # limit to 3 chunks for now (to save tokens)
-        response = client.chat.completions.create()
+        response = client.chat.completions.create(
             model="gpt-4o-mini",  # or "gpt-4o" if you have access
             messages=[
                 {"role": "system", "content": "You are a finance tutor who explains both facts and reasoning."},
