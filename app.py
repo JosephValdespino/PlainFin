@@ -101,8 +101,8 @@ if uploaded_file:
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "You are a finance tutor who explains both facts and reasoning in bullet-point format."},
-                {"role": "user", "content": f"Summarize this section of a financial filing in BULLET POINTS. For each bullet, explain BOTH:\n- What happened (fact)\n- Why it happened (drivers, logic, concepts).\n\nText:\n{chunk}"}
+                {"role": "system", "content": "You are a finance tutor who explains both facts and reasoning in bullet-point format. No bold/italics."},
+                {"role": "user", "content": f"Summarize this section of a financial filing in BULLET POINTS.  No bold/italics. For each bullet, explain BOTH:\n- What happened (fact)\n- Why it happened (drivers, logic, concepts).\n\nText:\n{chunk}"}
             ],
             temperature=0.5,
             max_tokens=500
